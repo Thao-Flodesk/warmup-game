@@ -1,0 +1,30 @@
+[
+  {
+    "prompt": "Coffee first, or straight into Slack?",
+    "options": ["Coffee first", "Straight into Slack"]
+  },
+  {
+    "prompt": "Camera on, or camera off?",
+    "options": ["Camera on", "Camera off"]
+  },
+  {
+    "prompt": "Early bird, or night owl?",
+    "options": ["Early bird", "Night owl"]
+  },
+  {
+    "prompt": "Text, or call?",
+    "options": ["Text", "Call"]
+  },
+  {
+    "prompt": "Beach vacation, or mountain retreat?",
+    "options": ["Beach", "Mountains"]
+  },
+  {
+    "prompt": "Dogs, or cats?",
+    "options": ["Dogs", "Cats"]
+  },
+  {
+    "prompt": "Sweet, or savory?",
+    "options": ["Sweet", "Savory"]
+  }
+]

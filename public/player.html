@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Team Warm-Up</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/style.css" />
+<style>
+  body { max-width: 480px; margin: 0 auto; justify-content: center; min-height: 100vh; gap: 20px; }
+  .center-text { text-align: center; }
+  #name-form { display: flex; flex-direction: column; gap: 16px; }
+
+  .q-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  #question-num { color: var(--muted); font-weight: 600; }
+  #question-text { font-size: 1.6rem; margin: 8px 0 0; }
+
+  .timer {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 800;
+  }
+  .timer.expired { background: var(--salmon-50); }
+
+  #options { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; }
+  .option-btn {
+    appearance: none;
+    border: none;
+    width: 100%;
+    aspect-ratio: 1 / 0.85;
+    border-radius: 18px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 16px;
+    color: var(--ink);
+    cursor: pointer;
+    transition: transform 0.08s ease;
+  }
+  .option-btn:active {
+    transform: scale(0.97);
+  }
+  .option-btn.accent-0 { background: var(--salmon-50); color: var(--paper); }
+  .option-btn.accent-1 { background: var(--pistachio-60); color: var(--paper); }
+  .option-btn.accent-2 { background: var(--yellow-50); color: var(--ink); }
+  .option-btn.accent-3 { background: var(--sand-50); color: var(--paper); }
+  .option-btn:disabled { cursor: default; opacity: 0.4; }
+  .option-btn.picked { opacity: 1; transform: scale(1.03); }
+
+  #live-results { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+  .result-col { border-radius: 16px; padding: 16px; text-align: center; }
+  .result-col.accent-0 { background: var(--salmon-50); color: var(--paper); }
+  .result-col.accent-1 { background: var(--pistachio-60); color: var(--paper); }
+  .result-col.accent-2 { background: var(--yellow-50); color: var(--ink); }
+  .result-col.accent-3 { background: var(--sand-50); color: var(--paper); }
+  .result-pct { font-size: 1.8rem; font-weight: 800; }
+  .result-count { font-size: 0.8rem; opacity: 0.75; }
+
+  .hidden { display: none !important; }
+  .waiting-dot { color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="eyebrow center-text">Team Warm-Up</div>
+
+  <section id="join-screen" class="card">
+    <h2 class="center-text">What's your name?</h2>
+    <form id="name-form">
+      <input type="text" id="name-input" placeholder="Your name" maxlength="30" autocomplete="off" required />
+      <button class="btn" type="submit">Join</button>
+    </form>
+  </section>
+
+  <section id="waiting-screen" class="card hidden center-text">
+    <h2>You're in! 🎉</h2>
+    <p class="waiting-dot">Waiting for the host to start the game…</p>
+  </section>
+
+  <section id="question-screen" class="card hidden">
+    <div class="q-header">
+      <div>
+        <div id="question-num" class="eyebrow"></div>
+        <h2 id="question-text"></h2>
+      </div>
+      <div class="timer" id="timer">5</div>
+    </div>
+    <div id="options"></div>
+    <div id="live-results" class="hidden"></div>
+  </section>
+
+  <section id="summary-screen" class="card hidden center-text">
+    <h2>That's a wrap! 🎉</h2>
+    <p class="waiting-dot">Check the big screen for the tea.</p>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/player.js"></script>
+</body>
+</html>
