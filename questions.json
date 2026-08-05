@@ -1,7 +1,7 @@
 [
   {
-    "prompt": "Coffee first, or straight into Slack?",
-    "options": ["Coffee first", "Straight into Slack"]
+    "prompt": "Pantry run first, or straight into Slack?",
+    "options": ["Pantry run", "Straight into Slack"]
   },
   {
     "prompt": "Camera on, or camera off?",
@@ -24,7 +24,7 @@
     "options": ["Dogs", "Cats"]
   },
   {
-    "prompt": "Sweet, or savory?",
-    "options": ["Sweet", "Savory"]
+    "prompt": "Dark mode, or light mode?",
+    "options": ["Dark mode", "Light mode"]
   }
 ]
