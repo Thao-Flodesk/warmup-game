@@ -41,8 +41,8 @@ const server = app.listen(PORT, () => {
 
 const io = new Server(server);
 
-const QUESTION_SECONDS = 7;
-const REVEAL_SECONDS = 3;
+const QUESTION_SECONDS = 10;
+const REVEAL_SECONDS = 5;
 
 // --- game state (single in-memory session, no auth — trusted internal use) ---
 let phase = "lobby"; // lobby | question | summary
