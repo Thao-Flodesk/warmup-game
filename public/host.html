@@ -63,7 +63,7 @@
   .chart-row.accent-3 .chart-letter { background: var(--sand-50); }
   .chart-label { width: 200px; flex-shrink: 0; font-weight: 700; }
   .chart-track { flex: 1; background: var(--paper); border-radius: 8px; height: 36px; overflow: hidden; }
-  .chart-fill { height: 100%; border-radius: 8px; background: var(--muted); transition: width 0.4s ease; }
+  .chart-fill { height: 100%; width: 100%; border-radius: 8px; background: var(--muted); transform: scaleX(0); transform-origin: left; transition: transform 0.4s ease; }
   .chart-row.correct .chart-fill { background: var(--pistachio-60); }
   .chart-count { width: 80px; flex-shrink: 0; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
   .chart-row.correct .chart-label::after {

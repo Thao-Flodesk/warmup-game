@@ -121,7 +121,7 @@ function renderReveal(payload) {
     row.innerHTML = `
       <div class="chart-letter">${LETTERS[i]}</div>
       <div class="chart-label">${opt}</div>
-      <div class="chart-track"><div class="chart-fill" style="width:${pct}%"></div></div>
+      <div class="chart-track"><div class="chart-fill" style="transform: scaleX(${pct / 100})"></div></div>
       <div class="chart-count">${count}</div>
     `;
     revealChart.appendChild(row);
