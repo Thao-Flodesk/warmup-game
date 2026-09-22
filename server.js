@@ -185,7 +185,8 @@ function revealCurrent() {
   });
   emitPersonalResults("your-result");
   clearTimeout(advanceTimer);
-  advanceTimer = setTimeout(showLeaderboard, REVEAL_SECONDS * 1000);
+  const isLastQuestion = questionIndex + 1 >= questions.length;
+  advanceTimer = setTimeout(isLastQuestion ? nextQuestionOrFinal : showLeaderboard, REVEAL_SECONDS * 1000);
 }
 
 function showLeaderboard() {
@@ -256,8 +257,11 @@ io.on("connection", (socket) => {
 
   socket.on("host-next", () => {
     if (phase === "question") revealCurrent();
-    else if (phase === "reveal") showLeaderboard();
-    else if (phase === "leaderboard") nextQuestionOrFinal();
+    else if (phase === "reveal") {
+      const isLastQuestion = questionIndex + 1 >= questions.length;
+      if (isLastQuestion) nextQuestionOrFinal();
+      else showLeaderboard();
+    } else if (phase === "leaderboard") nextQuestionOrFinal();
   });
 
   socket.on("host-reset", () => {
