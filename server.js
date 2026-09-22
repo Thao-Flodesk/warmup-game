@@ -23,6 +23,11 @@ function getLanUrl() {
 }
 
 const app = express();
+app.use((req, res, next) => {
+  // this app changes constantly during setup/testing — never let browsers cache stale JS/CSS/HTML
+  res.set("Cache-Control", "no-store");
+  next();
+});
 app.get("/", (req, res) => res.sendFile(path.join(__dirname, "public", "host.html")));
 app.get("/play", (req, res) => res.sendFile(path.join(__dirname, "public", "player.html")));
 app.use(express.static(path.join(__dirname, "public")));
