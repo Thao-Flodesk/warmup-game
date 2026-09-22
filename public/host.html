@@ -20,7 +20,7 @@
   .chip { background: var(--paper); border-radius: 100px; padding: 8px 16px; font-size: 0.9rem; }
 
   .q-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-  #question-num { color: var(--muted); font-weight: 600; }
+  #question-num, #reveal-num { color: var(--muted); font-weight: 600; }
   .emoji-clue { font-size: 3rem; margin: 10px 0 0; line-height: 1; }
 
   .timer {
@@ -31,6 +31,10 @@
   .timer.expired { background: var(--salmon-50); }
 
   .mc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 28px; }
+  @media (max-width: 700px) {
+    .mc-grid { grid-template-columns: 1fr; }
+    .chart-label { width: 110px; }
+  }
   .mc-opt {
     border-radius: 16px; padding: 20px 22px; color: var(--paper);
     display: flex; align-items: center; gap: 14px; font-weight: 700; font-size: 1.1rem;
@@ -45,19 +49,33 @@
   .mc-opt.accent-2 { background: var(--yellow-50); color: var(--ink); }
   .mc-opt.accent-2 .letter { background: rgba(14,14,14,0.12); }
   .mc-opt.accent-3 { background: var(--sand-50); }
-  .mc-opt.correct::after {
-    content: "✓ CORRECT"; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
-    font-size: 0.7rem; letter-spacing: 0.06em; background: rgba(255,255,255,0.92); color: var(--pistachio-60);
-    padding: 4px 10px; border-radius: 100px; font-weight: 800;
+
+  /* reveal: kahoot-style vote chart */
+  .chart-row { display: flex; align-items: center; gap: 14px; margin-top: 12px; }
+  .chart-row:first-child { margin-top: 24px; }
+  .chart-letter {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; color: var(--paper);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.95rem;
   }
-  .mc-opt.dim { opacity: 0.35; }
+  .chart-row.accent-0 .chart-letter { background: var(--salmon-50); }
+  .chart-row.accent-1 .chart-letter { background: var(--pistachio-60); }
+  .chart-row.accent-2 .chart-letter { background: var(--yellow-50); color: var(--ink); }
+  .chart-row.accent-3 .chart-letter { background: var(--sand-50); }
+  .chart-label { width: 200px; flex-shrink: 0; font-weight: 700; }
+  .chart-track { flex: 1; background: var(--paper); border-radius: 8px; height: 36px; overflow: hidden; }
+  .chart-fill { height: 100%; border-radius: 8px; background: var(--muted); transition: width 0.4s ease; }
+  .chart-row.correct .chart-fill { background: var(--pistachio-60); }
+  .chart-count { width: 80px; flex-shrink: 0; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .chart-row.correct .chart-label::after {
+    content: "✓"; margin-left: 6px; color: var(--pistachio-60); font-weight: 800;
+  }
 
   .explain { margin-top: 20px; background: var(--paper); border-radius: 14px; padding: 16px 18px; font-size: 1rem; color: var(--body); line-height: 1.5; }
   .stat-row { display: flex; gap: 28px; margin-top: 18px; }
   .stat .num { font-size: 1.7rem; font-weight: 800; }
   .stat .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 
-  #leaderboard-list { margin-top: 24px; }
+  #leaderboard-list, #final-list { margin-top: 8px; }
   .board-row {
     display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-radius: 14px;
     background: var(--paper); margin-top: 8px;
@@ -119,16 +137,22 @@
   <section id="reveal-screen" class="card hidden">
     <div id="reveal-num" class="eyebrow"></div>
     <div class="emoji-clue" id="reveal-emoji" style="font-size: 2rem;"></div>
-    <div id="reveal-options" class="mc-grid"></div>
+    <div id="reveal-chart"></div>
     <div class="explain" id="reveal-explain"></div>
     <div class="stat-row">
       <div class="stat"><div class="num" id="stat-correct">0/0</div><div class="label">Got it right</div></div>
       <div class="stat"><div class="num" id="stat-fastest">—</div><div class="label">Fastest correct</div></div>
     </div>
-    <div class="eyebrow" style="margin-top:24px;">Leaderboard</div>
-    <div id="leaderboard-list"></div>
     <div class="actions">
       <button class="btn secondary" id="next-btn-2">Skip ahead</button>
+    </div>
+  </section>
+
+  <section id="leaderboard-screen" class="card hidden">
+    <div class="eyebrow">Leaderboard</div>
+    <div id="leaderboard-list"></div>
+    <div class="actions">
+      <button class="btn secondary" id="next-btn-3">Skip ahead</button>
     </div>
   </section>
 

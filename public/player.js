@@ -97,7 +97,7 @@ socket.on("state", (s) => {
     showScreen("waiting");
   } else if (s.phase === "question") {
     renderQuestion({ question: s.question, total: s.total, index: s.index, deadline: s.deadline });
-  } else if (s.phase === "reveal") {
+  } else if (s.phase === "reveal" || s.phase === "leaderboard") {
     showScreen("waiting-reveal");
   } else if (s.phase === "final") {
     showScreen("final");

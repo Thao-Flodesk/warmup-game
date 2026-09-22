@@ -3,6 +3,7 @@ const socket = io();
 const lobbyEl = document.getElementById("lobby");
 const questionScreen = document.getElementById("question-screen");
 const revealScreen = document.getElementById("reveal-screen");
+const leaderboardScreen = document.getElementById("leaderboard-screen");
 const finalScreen = document.getElementById("final-screen");
 
 const qrImg = document.getElementById("qr-img");
@@ -12,6 +13,7 @@ const playersList = document.getElementById("players-list");
 const startBtn = document.getElementById("start-btn");
 const nextBtn = document.getElementById("next-btn");
 const nextBtn2 = document.getElementById("next-btn-2");
+const nextBtn3 = document.getElementById("next-btn-3");
 const resetBtn = document.getElementById("reset-btn");
 
 const questionNum = document.getElementById("question-num");
@@ -21,7 +23,7 @@ const timerEl = document.getElementById("timer");
 
 const revealNum = document.getElementById("reveal-num");
 const revealEmoji = document.getElementById("reveal-emoji");
-const revealOptions = document.getElementById("reveal-options");
+const revealChart = document.getElementById("reveal-chart");
 const revealExplain = document.getElementById("reveal-explain");
 const statCorrect = document.getElementById("stat-correct");
 const statFastest = document.getElementById("stat-fastest");
@@ -42,6 +44,7 @@ function showScreen(name) {
   lobbyEl.classList.toggle("hidden", name !== "lobby");
   questionScreen.classList.toggle("hidden", name !== "question");
   revealScreen.classList.toggle("hidden", name !== "reveal");
+  leaderboardScreen.classList.toggle("hidden", name !== "leaderboard");
   finalScreen.classList.toggle("hidden", name !== "final");
 }
 
@@ -82,7 +85,7 @@ function renderQuestion(payload) {
   if (payload.deadline) startTimer(payload.deadline);
 }
 
-function renderLeaderboard(container, rows) {
+function renderLeaderboardRows(container, rows) {
   container.innerHTML = "";
   const arrow = { up: "↑", down: "↓", same: "—", new: "new" };
   rows.forEach((row, i) => {
@@ -107,18 +110,30 @@ function renderReveal(payload) {
   const r = payload.reveal;
   revealNum.textContent = `Question ${payload.index + 1} of ${payload.total} — Answer`;
   revealEmoji.textContent = r.emoji;
-  revealOptions.innerHTML = "";
+  const maxCount = Math.max(1, ...r.counts);
+  revealChart.innerHTML = "";
   r.options.forEach((opt, i) => {
-    const div = document.createElement("div");
     const isCorrect = i === r.correctIndex;
-    div.className = `mc-opt ${ACCENTS[i]} ${isCorrect ? "correct" : "dim"}`;
-    div.innerHTML = `<span class="letter">${LETTERS[i]}</span>${opt}`;
-    revealOptions.appendChild(div);
+    const count = r.counts[i];
+    const pct = Math.round((count / maxCount) * 100);
+    const row = document.createElement("div");
+    row.className = `chart-row ${ACCENTS[i]} ${isCorrect ? "correct" : ""}`;
+    row.innerHTML = `
+      <div class="chart-letter">${LETTERS[i]}</div>
+      <div class="chart-label">${opt}</div>
+      <div class="chart-track"><div class="chart-fill" style="width:${pct}%"></div></div>
+      <div class="chart-count">${count}</div>
+    `;
+    revealChart.appendChild(row);
   });
   revealExplain.innerHTML = `<b>${r.options[r.correctIndex]}</b> — ${r.explain}`;
   statCorrect.textContent = `${r.correctCount}/${r.totalAnswered}`;
   statFastest.textContent = r.fastestName || "—";
-  renderLeaderboard(leaderboardList, payload.leaderboard);
+}
+
+function renderLeaderboardScreen(payload) {
+  showScreen("leaderboard");
+  renderLeaderboardRows(leaderboardList, payload.leaderboard);
 }
 
 function renderFinal(payload) {
@@ -155,7 +170,9 @@ socket.on("state", (s) => {
   } else if (s.phase === "question") {
     renderQuestion({ question: s.question, total: s.total, index: s.index, deadline: s.deadline });
   } else if (s.phase === "reveal") {
-    renderReveal({ reveal: s.reveal, leaderboard: s.leaderboard, total: s.total, index: s.index });
+    renderReveal({ reveal: s.reveal, total: s.total, index: s.index });
+  } else if (s.phase === "leaderboard") {
+    renderLeaderboardScreen({ leaderboard: s.leaderboard });
   } else if (s.phase === "final") {
     renderFinal({ leaderboard: s.leaderboard });
   }
@@ -164,9 +181,11 @@ socket.on("state", (s) => {
 socket.on("players-update", renderPlayers);
 socket.on("question", renderQuestion);
 socket.on("reveal", renderReveal);
+socket.on("leaderboard", renderLeaderboardScreen);
 socket.on("final", renderFinal);
 
 startBtn.addEventListener("click", () => socket.emit("host-start"));
 nextBtn.addEventListener("click", () => socket.emit("host-next"));
 nextBtn2.addEventListener("click", () => socket.emit("host-next"));
+nextBtn3.addEventListener("click", () => socket.emit("host-next"));
 resetBtn.addEventListener("click", () => socket.emit("host-reset"));

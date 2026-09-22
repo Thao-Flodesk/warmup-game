@@ -42,14 +42,30 @@ const server = app.listen(PORT, () => {
 const io = new Server(server);
 
 const QUESTION_SECONDS = 10;
-const REVEAL_SECONDS = 8;
+const REVEAL_SECONDS = 3;
+const LEADERBOARD_SECONDS = 3;
+
+function shuffleQuestion(q) {
+  const order = [0, 1, 2, 3];
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return {
+    emoji: q.emoji,
+    options: order.map((i) => q.options[i]),
+    correct: order.indexOf(q.correct),
+    explain: q.explain,
+  };
+}
 
 // --- game state (single in-memory session, no auth — trusted internal use) ---
-let phase = "lobby"; // lobby | question | reveal | final
+let phase = "lobby"; // lobby | question | reveal | leaderboard | final
 let questionIndex = -1;
 let questionDeadline = 0;
 let advanceTimer = null;
 let lastRanking = []; // names in previous rank order, for leaderboard delta arrows
+let gameQuestions = questions.map(shuffleQuestion); // reshuffled fresh each "Start Game"
 let players = {}; // socketId -> { name, totalScore, answers: { [qIndex]: { choice, correct, points, answeredAt } } }
 
 function playerNames() {
@@ -57,7 +73,7 @@ function playerNames() {
 }
 
 function questionForClient(qi) {
-  const q = questions[qi];
+  const q = gameQuestions[qi];
   return { emoji: q.emoji, options: q.options };
 }
 
@@ -70,16 +86,16 @@ function scoreAnswer(correct, answeredAt) {
 }
 
 function computeRevealStats(qi) {
-  const q = questions[qi];
-  let correctCount = 0;
+  const q = gameQuestions[qi];
+  const counts = [0, 0, 0, 0];
   let totalAnswered = 0;
   let fastest = null;
   Object.values(players).forEach((p) => {
     const a = p.answers[qi];
     if (!a) return;
     totalAnswered++;
+    counts[a.choice]++;
     if (a.correct) {
-      correctCount++;
       if (!fastest || a.answeredAt < fastest.answeredAt) fastest = { name: p.name, answeredAt: a.answeredAt };
     }
   });
@@ -88,7 +104,8 @@ function computeRevealStats(qi) {
     options: q.options,
     correctIndex: q.correct,
     explain: q.explain,
-    correctCount,
+    counts,
+    correctCount: counts[q.correct],
     totalAnswered,
     fastestName: fastest ? fastest.name : null,
   };
@@ -135,7 +152,10 @@ function stateForNewClient() {
     return { phase, question: questionForClient(questionIndex), total: questions.length, index: questionIndex, deadline: questionDeadline };
   }
   if (phase === "reveal") {
-    return { phase, reveal: computeRevealStats(questionIndex), leaderboard: computeLeaderboard(full), total: questions.length, index: questionIndex };
+    return { phase, reveal: computeRevealStats(questionIndex), total: questions.length, index: questionIndex };
+  }
+  if (phase === "leaderboard") {
+    return { phase, leaderboard: computeLeaderboard(full), total: questions.length, index: questionIndex };
   }
   if (phase === "final") {
     return { phase, leaderboard: computeLeaderboard(full) };
@@ -158,17 +178,26 @@ function emitQuestion() {
 
 function revealCurrent() {
   phase = "reveal";
-  const full = computeFullRanking();
-  const payload = {
+  io.emit("reveal", {
     reveal: computeRevealStats(questionIndex),
+    total: questions.length,
+    index: questionIndex,
+  });
+  emitPersonalResults("your-result");
+  clearTimeout(advanceTimer);
+  advanceTimer = setTimeout(showLeaderboard, REVEAL_SECONDS * 1000);
+}
+
+function showLeaderboard() {
+  phase = "leaderboard";
+  const full = computeFullRanking();
+  io.emit("leaderboard", {
     leaderboard: computeLeaderboard(full),
     total: questions.length,
     index: questionIndex,
-  };
-  io.emit("reveal", payload);
-  emitPersonalResults("your-result");
+  });
   clearTimeout(advanceTimer);
-  advanceTimer = setTimeout(nextQuestionOrFinal, REVEAL_SECONDS * 1000);
+  advanceTimer = setTimeout(nextQuestionOrFinal, LEADERBOARD_SECONDS * 1000);
 }
 
 function nextQuestionOrFinal() {
@@ -210,7 +239,7 @@ io.on("connection", (socket) => {
     const answeredAt = Date.now();
     if (answeredAt > questionDeadline + 500) return; // grace period for network latency
     if (p.answers[questionIndex] !== undefined) return;
-    const correct = choiceIndex === questions[questionIndex].correct;
+    const correct = choiceIndex === gameQuestions[questionIndex].correct;
     const points = scoreAnswer(correct, answeredAt);
     p.answers[questionIndex] = { choice: choiceIndex, correct, points, answeredAt };
     p.totalScore = (p.totalScore || 0) + points;
@@ -219,6 +248,7 @@ io.on("connection", (socket) => {
 
   socket.on("host-start", () => {
     if (phase !== "lobby") return;
+    gameQuestions = questions.map(shuffleQuestion);
     questionIndex = 0;
     lastRanking = [];
     emitQuestion();
@@ -226,7 +256,8 @@ io.on("connection", (socket) => {
 
   socket.on("host-next", () => {
     if (phase === "question") revealCurrent();
-    else if (phase === "reveal") nextQuestionOrFinal();
+    else if (phase === "reveal") showLeaderboard();
+    else if (phase === "leaderboard") nextQuestionOrFinal();
   });
 
   socket.on("host-reset", () => {
