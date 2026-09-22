@@ -34,7 +34,7 @@ app.get("/api/qr", async (req, res) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`Warm-up game running.`);
+  console.log(`Emoji quiz running.`);
   console.log(`Host screen:  http://localhost:${PORT}`);
   console.log(`Players join: ${getLanUrl()}/play`);
 });
@@ -42,115 +42,142 @@ const server = app.listen(PORT, () => {
 const io = new Server(server);
 
 const QUESTION_SECONDS = 10;
-const REVEAL_SECONDS = 5;
+const REVEAL_SECONDS = 8;
 
 // --- game state (single in-memory session, no auth — trusted internal use) ---
-let phase = "lobby"; // lobby | question | summary
+let phase = "lobby"; // lobby | question | reveal | final
 let questionIndex = -1;
 let questionDeadline = 0;
 let advanceTimer = null;
-let players = {}; // socketId -> { name, answers: { [qIndex]: choiceIndex } }
-
-function tallyForQuestion(qi) {
-  const q = questions[qi];
-  const groups = q.options.map(() => []);
-  Object.values(players).forEach((p) => {
-    const choice = p.answers[qi];
-    if (choice !== undefined) groups[choice].push(p.name);
-  });
-  return { qi, prompt: q.prompt, options: q.options, groups };
-}
+let lastRanking = []; // names in previous rank order, for leaderboard delta arrows
+let players = {}; // socketId -> { name, totalScore, answers: { [qIndex]: { choice, correct, points, answeredAt } } }
 
 function playerNames() {
   return Object.values(players).map((p) => p.name);
 }
 
-function computeSummary() {
-  const list = Object.values(players);
-  const perQuestion = questions.map((q, qi) => {
-    const t = tallyForQuestion(qi);
-    const counts = t.groups.map((g) => g.length);
-    const total = counts.reduce((a, b) => a + b, 0);
-    return { prompt: q.prompt, options: q.options, counts, total };
+function questionForClient(qi) {
+  const q = questions[qi];
+  return { emoji: q.emoji, options: q.options };
+}
+
+function scoreAnswer(correct, answeredAt) {
+  if (!correct) return 0;
+  const totalMs = QUESTION_SECONDS * 1000;
+  const remaining = Math.max(0, questionDeadline - answeredAt);
+  const frac = Math.min(1, remaining / totalMs);
+  return Math.round(500 + 500 * frac);
+}
+
+function computeRevealStats(qi) {
+  const q = questions[qi];
+  let correctCount = 0;
+  let totalAnswered = 0;
+  let fastest = null;
+  Object.values(players).forEach((p) => {
+    const a = p.answers[qi];
+    if (!a) return;
+    totalAnswered++;
+    if (a.correct) {
+      correctCount++;
+      if (!fastest || a.answeredAt < fastest.answeredAt) fastest = { name: p.name, answeredAt: a.answeredAt };
+    }
   });
+  return {
+    emoji: q.emoji,
+    options: q.options,
+    correctIndex: q.correct,
+    explain: q.explain,
+    correctCount,
+    totalAnswered,
+    fastestName: fastest ? fastest.name : null,
+  };
+}
 
-  let mostAgreed = null;
-  let mostDivided = null;
-  perQuestion.forEach((s) => {
-    if (s.total === 0) return;
-    const max = Math.max(...s.counts);
-    const share = max / s.total;
-    const sorted = [...s.counts].sort((a, b) => b - a);
-    const gap = (sorted[0] - (sorted[1] || 0)) / s.total;
-    const topOption = s.options[s.counts.indexOf(max)];
-    if (!mostAgreed || share > mostAgreed.share) {
-      mostAgreed = { prompt: s.prompt, topOption, share, total: s.total };
-    }
-    if (!mostDivided || gap < mostDivided.gap) {
-      mostDivided = { prompt: s.prompt, gap, total: s.total };
-    }
+function computeFullRanking() {
+  return Object.entries(players)
+    .map(([sid, p]) => ({ sid, name: p.name, score: p.totalScore || 0 }))
+    .sort((a, b) => b.score - a.score);
+}
+
+function computeLeaderboard(full) {
+  const top = full.slice(0, 5).map((r) => ({ name: r.name, score: r.score }));
+  const withDelta = top.map((row, i) => {
+    const prevIndex = lastRanking.indexOf(row.name);
+    let delta = "new";
+    if (prevIndex !== -1) delta = prevIndex === i ? "same" : prevIndex > i ? "up" : "down";
+    return { ...row, delta };
   });
+  lastRanking = top.map((r) => r.name);
+  return withDelta;
+}
 
-  let bestTwins = null;
-  for (let i = 0; i < list.length; i++) {
-    for (let j = i + 1; j < list.length; j++) {
-      const a = list[i];
-      const b = list[j];
-      const commonQs = questions
-        .map((_, qi) => qi)
-        .filter((qi) => a.answers[qi] !== undefined && b.answers[qi] !== undefined);
-      if (commonQs.length === 0) continue;
-      const matches = commonQs.filter((qi) => a.answers[qi] === b.answers[qi]).length;
-      if (matches === commonQs.length && (!bestTwins || commonQs.length > bestTwins.count)) {
-        bestTwins = { a: a.name, b: b.name, count: commonQs.length };
-      }
-    }
-  }
-
-  let freeThinker = null;
-  list.forEach((p) => {
-    let minorityCount = 0;
-    let answeredCount = 0;
-    questions.forEach((q, qi) => {
-      if (p.answers[qi] === undefined) return;
-      answeredCount++;
-      const counts = perQuestion[qi].counts;
-      const max = Math.max(...counts);
-      if (counts[p.answers[qi]] < max) minorityCount++;
+function emitPersonalResults(eventName) {
+  const full = computeFullRanking();
+  full.forEach((r, i) => {
+    const sock = io.sockets.sockets.get(r.sid);
+    if (!sock) return;
+    const p = players[r.sid];
+    const a = p.answers[questionIndex];
+    sock.emit(eventName, {
+      correct: a ? a.correct : false,
+      points: a ? a.points : 0,
+      totalScore: p.totalScore || 0,
+      rank: i + 1,
+      totalPlayers: full.length,
     });
-    if (answeredCount > 0 && minorityCount > (freeThinker ? freeThinker.count : -1)) {
-      freeThinker = { name: p.name, count: minorityCount, total: answeredCount };
-    }
   });
-
-  return { perQuestion, mostAgreed, mostDivided, bestTwins, freeThinker };
 }
 
 function stateForNewClient() {
+  const full = computeFullRanking();
   if (phase === "question") {
-    return { phase, question: tallyForQuestion(questionIndex), total: questions.length, index: questionIndex, deadline: questionDeadline };
+    return { phase, question: questionForClient(questionIndex), total: questions.length, index: questionIndex, deadline: questionDeadline };
   }
-  if (phase === "summary") return { phase, summary: computeSummary() };
+  if (phase === "reveal") {
+    return { phase, reveal: computeRevealStats(questionIndex), leaderboard: computeLeaderboard(full), total: questions.length, index: questionIndex };
+  }
+  if (phase === "final") {
+    return { phase, leaderboard: computeLeaderboard(full) };
+  }
   return { phase, players: playerNames() };
 }
 
 function emitQuestion() {
   questionDeadline = Date.now() + QUESTION_SECONDS * 1000;
+  phase = "question";
   io.emit("question", {
-    question: tallyForQuestion(questionIndex),
+    question: questionForClient(questionIndex),
     total: questions.length,
     index: questionIndex,
     deadline: questionDeadline,
   });
   clearTimeout(advanceTimer);
-  advanceTimer = setTimeout(advanceQuestion, (QUESTION_SECONDS + REVEAL_SECONDS) * 1000);
+  advanceTimer = setTimeout(revealCurrent, QUESTION_SECONDS * 1000);
 }
 
-function advanceQuestion() {
+function revealCurrent() {
+  phase = "reveal";
+  const full = computeFullRanking();
+  const payload = {
+    reveal: computeRevealStats(questionIndex),
+    leaderboard: computeLeaderboard(full),
+    total: questions.length,
+    index: questionIndex,
+  };
+  io.emit("reveal", payload);
+  emitPersonalResults("your-result");
+  clearTimeout(advanceTimer);
+  advanceTimer = setTimeout(nextQuestionOrFinal, REVEAL_SECONDS * 1000);
+}
+
+function nextQuestionOrFinal() {
   clearTimeout(advanceTimer);
   if (questionIndex + 1 >= questions.length) {
-    phase = "summary";
-    io.emit("summary", computeSummary());
+    phase = "final";
+    const full = computeFullRanking();
+    io.emit("final", { leaderboard: computeLeaderboard(full) });
+    emitPersonalResults("your-final");
   } else {
     questionIndex++;
     emitQuestion();
@@ -162,7 +189,17 @@ io.on("connection", (socket) => {
 
   socket.on("join", (name) => {
     const clean = String(name || "").trim().slice(0, 30) || "Anonymous";
-    players[socket.id] = { name: clean, answers: {} };
+    const reconnectId =
+      phase !== "lobby"
+        ? Object.keys(players).find((sid) => sid !== socket.id && players[sid].name.toLowerCase() === clean.toLowerCase())
+        : null;
+    if (reconnectId) {
+      // mid-game reload: carry over the existing score/answers instead of starting over
+      players[socket.id] = players[reconnectId];
+      delete players[reconnectId];
+    } else {
+      players[socket.id] = { name: clean, totalScore: 0, answers: {} };
+    }
     io.emit("players-update", playerNames());
     socket.emit("state", stateForNewClient());
   });
@@ -170,21 +207,26 @@ io.on("connection", (socket) => {
   socket.on("answer", (choiceIndex) => {
     const p = players[socket.id];
     if (!p || phase !== "question") return;
-    if (Date.now() > questionDeadline + 500) return; // grace period for network latency
+    const answeredAt = Date.now();
+    if (answeredAt > questionDeadline + 500) return; // grace period for network latency
     if (p.answers[questionIndex] !== undefined) return;
-    p.answers[questionIndex] = choiceIndex;
-    io.emit("tally-update", tallyForQuestion(questionIndex));
+    const correct = choiceIndex === questions[questionIndex].correct;
+    const points = scoreAnswer(correct, answeredAt);
+    p.answers[questionIndex] = { choice: choiceIndex, correct, points, answeredAt };
+    p.totalScore = (p.totalScore || 0) + points;
+    socket.emit("answer-ack", { correct, points });
   });
 
   socket.on("host-start", () => {
-    phase = "question";
+    if (phase !== "lobby") return;
     questionIndex = 0;
+    lastRanking = [];
     emitQuestion();
   });
 
   socket.on("host-next", () => {
-    if (phase !== "question") return;
-    advanceQuestion();
+    if (phase === "question") revealCurrent();
+    else if (phase === "reveal") nextQuestionOrFinal();
   });
 
   socket.on("host-reset", () => {
@@ -192,6 +234,7 @@ io.on("connection", (socket) => {
     phase = "lobby";
     questionIndex = -1;
     questionDeadline = 0;
+    lastRanking = [];
     players = {};
     io.emit("state", stateForNewClient());
   });

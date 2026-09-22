@@ -1,30 +1,62 @@
 [
   {
-    "prompt": "Pantry run first, or straight into Slack?",
-    "options": ["Pantry run", "Straight into Slack"]
+    "emoji": "🐛🔨",
+    "options": ["Hotfix", "Patch release", "Regression test", "Bug fix"],
+    "correct": 3,
+    "explain": "The bug (🐛) gets hammered (🔨) — classic bug fix, not a full patch release."
   },
   {
-    "prompt": "Camera on, or camera off?",
-    "options": ["Camera on", "Camera off"]
+    "emoji": "📬📈",
+    "options": ["Deliverability", "Bounce rate", "Click-through rate", "Open rate"],
+    "correct": 3,
+    "explain": "Envelope opening (📬) + line going up (📈) = open rate, not click-through — no click icon here."
   },
   {
-    "prompt": "Early bird, or night owl?",
-    "options": ["Early bird", "Night owl"]
+    "emoji": "🔀😤",
+    "options": ["Rebase conflict", "Pull request", "Code review", "Merge conflict"],
+    "correct": 3,
+    "explain": "The branch-merge arrows (🔀) plus the frustrated face (😤) is the universal symbol for a merge conflict."
   },
   {
-    "prompt": "Text, or call?",
-    "options": ["Text", "Call"]
+    "emoji": "🧪🅰️🆚🅱️",
+    "options": ["Multivariate test", "Split test", "Cohort analysis", "A/B test"],
+    "correct": 3,
+    "explain": "Test tube (🧪) + A vs B (🆚) is literally the icon for A/B test — split test is the marketing synonym, but A/B test is the standard term."
   },
   {
-    "prompt": "Beach vacation, or mountain retreat?",
-    "options": ["Beach", "Mountains"]
+    "emoji": "🔥🚨",
+    "options": ["Service degradation", "Postmortem", "Escalation", "Production incident"],
+    "correct": 3,
+    "explain": "Fire (🔥) + siren (🚨) = something's actively broken in prod — bigger than a service degradation, that's the alert-level term."
   },
   {
-    "prompt": "Dogs, or cats?",
-    "options": ["Dogs", "Cats"]
+    "emoji": "🚫📥",
+    "options": ["Spam complaint rate", "Bounce rate", "Churn rate", "Unsubscribe rate"],
+    "correct": 3,
+    "explain": "Blocked inbox (🚫📥) means people opting out — that's unsubscribe rate, not bounce (which is a delivery failure, not a choice)."
   },
   {
-    "prompt": "Dark mode, or light mode?",
-    "options": ["Dark mode", "Light mode"]
+    "emoji": "🚀🌙",
+    "options": ["Migration", "Rollback", "Canary release", "Deployment"],
+    "correct": 3,
+    "explain": "Rocket to the moon (🚀🌙) is the classic 'ship it to prod' emoji combo — deployment, not just a migration or rollback."
+  },
+  {
+    "emoji": "💧📧",
+    "options": ["Nurture sequence", "Automation workflow", "Broadcast email", "Drip campaign"],
+    "correct": 3,
+    "explain": "Water drop (💧) + email (📧) = emails dripping out over time — that's the literal meaning of drip campaign."
+  },
+  {
+    "emoji": "🔒🔑",
+    "options": ["Authorization", "Encryption", "Tokenization", "Authentication"],
+    "correct": 3,
+    "explain": "Lock (🔒) + key (🔑) = proving who you are to unlock access — that's authentication. Authorization is what you're allowed to do after."
+  },
+  {
+    "emoji": "📊🎯",
+    "options": ["Conversion rate", "Engagement rate", "Click-to-open rate", "Click-through rate"],
+    "correct": 3,
+    "explain": "Chart (📊) + bullseye (🎯) = hitting the link and clicking through — CTR. Click-to-open rate is a narrower metric (clicks ÷ opens only)."
   }
 ]

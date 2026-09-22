@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>Team Warm-Up</title>
+<title>Emoji Quiz</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -15,60 +15,45 @@
 
   .q-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
   #question-num { color: var(--muted); font-weight: 600; }
-  #question-text { font-size: 1.6rem; margin: 8px 0 0; }
+  .emoji-clue { font-size: 2.4rem; margin: 8px 0 0; text-align: center; }
 
   .timer {
-    flex-shrink: 0;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: var(--ink);
-    color: var(--paper);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    font-weight: 800;
+    flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%;
+    background: var(--ink); color: var(--paper); display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; font-weight: 800;
   }
   .timer.expired { background: var(--salmon-50); }
 
   #options { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; }
   .option-btn {
-    appearance: none;
-    border: none;
-    width: 100%;
-    aspect-ratio: 1 / 0.85;
-    border-radius: 18px;
-    font-family: var(--font-sans);
-    font-weight: 700;
-    font-size: 1.1rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 16px;
-    color: var(--ink);
-    cursor: pointer;
-    transition: transform 0.08s ease;
+    appearance: none; border: none; width: 100%; aspect-ratio: 1 / 0.85; border-radius: 18px;
+    font-family: var(--font-sans); font-weight: 700; font-size: 1rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    text-align: center; padding: 14px; color: var(--paper); cursor: pointer; transition: transform 0.08s ease;
   }
-  .option-btn:active {
-    transform: scale(0.97);
+  .option-btn:active { transform: scale(0.97); }
+  .option-btn .letter {
+    width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,0.28);
+    display: flex; align-items: center; justify-content: center; font-size: 0.85rem;
   }
-  .option-btn.accent-0 { background: var(--salmon-50); color: var(--paper); }
-  .option-btn.accent-1 { background: var(--pistachio-60); color: var(--paper); }
+  .option-btn.accent-0 { background: var(--salmon-50); }
+  .option-btn.accent-1 { background: var(--pistachio-60); }
   .option-btn.accent-2 { background: var(--yellow-50); color: var(--ink); }
-  .option-btn.accent-3 { background: var(--sand-50); color: var(--paper); }
+  .option-btn.accent-2 .letter { background: rgba(14,14,14,0.12); }
+  .option-btn.accent-3 { background: var(--sand-50); }
   .option-btn:disabled { cursor: default; opacity: 0.4; }
   .option-btn.picked { opacity: 1; transform: scale(1.03); }
 
-  #live-results { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
-  .result-col { border-radius: 16px; padding: 16px; text-align: center; }
-  .result-col.accent-0 { background: var(--salmon-50); color: var(--paper); }
-  .result-col.accent-1 { background: var(--pistachio-60); color: var(--paper); }
-  .result-col.accent-2 { background: var(--yellow-50); color: var(--ink); }
-  .result-col.accent-3 { background: var(--sand-50); color: var(--paper); }
-  .result-pct { font-size: 1.8rem; font-weight: 800; }
-  .result-count { font-size: 0.8rem; opacity: 0.75; }
+  .result-card { border-radius: 18px; padding: 24px; text-align: center; }
+  .result-card.win { background: var(--pistachio-60); color: var(--paper); }
+  .result-card.lose { background: var(--paper); }
+  .result-card .tag { font-size: 0.8rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; }
+  .result-card.lose .tag { color: var(--salmon-50); }
+  .result-card .big { font-size: 1.8rem; font-weight: 800; margin: 8px 0 4px; }
+  .result-card .sub { font-size: 0.9rem; opacity: 0.85; }
+  .result-card.lose .sub { color: var(--muted); }
+  .rank-pill { display: inline-block; margin-top: 14px; font-size: 0.8rem; font-weight: 700; background: rgba(255,255,255,0.25); padding: 5px 14px; border-radius: 100px; }
+  .result-card.lose .rank-pill { background: var(--paper-2); color: var(--body); }
 
   .hidden { display: none !important; }
   .waiting-dot { color: var(--muted); }
@@ -87,24 +72,30 @@
 
   <section id="waiting-screen" class="card hidden center-text">
     <h2>You're in! 🎉</h2>
-    <p class="waiting-dot">Waiting for the host to start the game…</p>
+    <p class="waiting-dot">Waiting for the host to start the quiz…</p>
   </section>
 
   <section id="question-screen" class="card hidden">
     <div class="q-header">
-      <div>
-        <div id="question-num" class="eyebrow"></div>
-        <h2 id="question-text"></h2>
-      </div>
+      <div id="question-num" class="eyebrow"></div>
       <div class="timer" id="timer">10</div>
     </div>
+    <div class="emoji-clue" id="question-emoji"></div>
     <div id="options"></div>
-    <div id="live-results" class="hidden"></div>
   </section>
 
-  <section id="summary-screen" class="card hidden center-text">
+  <section id="waiting-reveal-screen" class="card hidden center-text">
+    <h2>Locked in! 🔒</h2>
+    <p class="waiting-dot">Waiting for everyone else…</p>
+  </section>
+
+  <section id="reveal-screen" class="card hidden center-text">
+    <div id="result-card" class="result-card"></div>
+  </section>
+
+  <section id="final-screen" class="card hidden center-text">
     <h2>That's a wrap! 🎉</h2>
-    <p class="waiting-dot">Check the big screen for the tea.</p>
+    <div id="final-card" class="result-card win" style="margin-top: 16px;"></div>
   </section>
 
   <script src="/socket.io/socket.io.js"></script>

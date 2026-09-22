@@ -2,7 +2,8 @@ const socket = io();
 
 const lobbyEl = document.getElementById("lobby");
 const questionScreen = document.getElementById("question-screen");
-const summaryScreen = document.getElementById("summary-screen");
+const revealScreen = document.getElementById("reveal-screen");
+const finalScreen = document.getElementById("final-screen");
 
 const qrImg = document.getElementById("qr-img");
 const joinUrlEl = document.getElementById("join-url");
@@ -10,28 +11,38 @@ const playersCount = document.getElementById("players-count");
 const playersList = document.getElementById("players-list");
 const startBtn = document.getElementById("start-btn");
 const nextBtn = document.getElementById("next-btn");
+const nextBtn2 = document.getElementById("next-btn-2");
 const resetBtn = document.getElementById("reset-btn");
 
 const questionNum = document.getElementById("question-num");
-const questionText = document.getElementById("question-text");
-const teamsEl = document.getElementById("teams");
-const insightsEl = document.getElementById("insights");
+const questionEmoji = document.getElementById("question-emoji");
+const optionsEl = document.getElementById("options");
 const timerEl = document.getElementById("timer");
 
+const revealNum = document.getElementById("reveal-num");
+const revealEmoji = document.getElementById("reveal-emoji");
+const revealOptions = document.getElementById("reveal-options");
+const revealExplain = document.getElementById("reveal-explain");
+const statCorrect = document.getElementById("stat-correct");
+const statFastest = document.getElementById("stat-fastest");
+const leaderboardList = document.getElementById("leaderboard-list");
+
+const winnerName = document.getElementById("winner-name");
+const finalList = document.getElementById("final-list");
+
 const ACCENTS = ["accent-0", "accent-1", "accent-2", "accent-3"];
+const LETTERS = ["A", "B", "C", "D"];
 let timerInterval = null;
 
-const NAME_COLORS = ["#cf4a27", "#464643", "#8d8b3f", "#90875f", "#bf6a66", "#6b954c"];
-function colorForName(name) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return NAME_COLORS[hash % NAME_COLORS.length];
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
 function showScreen(name) {
   lobbyEl.classList.toggle("hidden", name !== "lobby");
   questionScreen.classList.toggle("hidden", name !== "question");
-  summaryScreen.classList.toggle("hidden", name !== "summary");
+  revealScreen.classList.toggle("hidden", name !== "reveal");
+  finalScreen.classList.toggle("hidden", name !== "final");
 }
 
 function renderPlayers(names) {
@@ -60,80 +71,73 @@ function startTimer(deadline) {
 function renderQuestion(payload) {
   showScreen("question");
   questionNum.textContent = `Question ${payload.index + 1} of ${payload.total}`;
-  renderTally(payload.question);
+  questionEmoji.textContent = payload.question.emoji;
+  optionsEl.innerHTML = "";
+  payload.question.options.forEach((opt, i) => {
+    const div = document.createElement("div");
+    div.className = `mc-opt ${ACCENTS[i]}`;
+    div.innerHTML = `<span class="letter">${LETTERS[i]}</span>${opt}`;
+    optionsEl.appendChild(div);
+  });
   if (payload.deadline) startTimer(payload.deadline);
 }
 
-function renderTally(q) {
-  questionText.textContent = q.prompt;
-  const total = q.groups.reduce((a, g) => a + g.length, 0);
-  teamsEl.innerHTML = "";
-  q.options.forEach((opt, i) => {
-    const names = q.groups[i];
-    const pct = total ? Math.round((names.length / total) * 100) : 0;
-    const col = document.createElement("div");
-    col.className = `team-col ${ACCENTS[i % ACCENTS.length]}`;
-    col.innerHTML = `
-      <div class="team-label">${opt}</div>
-      <div class="team-pct">${pct}%</div>
-      <div class="team-count">${names.length} ${names.length === 1 ? "person" : "people"}</div>
-      <div class="team-names">${names.map((n) => `<span class="name-pill" style="color:${colorForName(n)}">${n}</span>`).join("")}</div>
+function renderLeaderboard(container, rows) {
+  container.innerHTML = "";
+  const arrow = { up: "↑", down: "↓", same: "—", new: "new" };
+  rows.forEach((row, i) => {
+    const div = document.createElement("div");
+    div.className = `board-row ${i === 0 ? "top1" : i === 1 ? "top2" : i === 2 ? "top3" : ""}`;
+    div.innerHTML = `
+      <div class="rank">${i + 1}</div>
+      <div class="board-name">${escapeHtml(row.name)}</div>
+      <div class="board-delta">${arrow[row.delta] || ""}</div>
+      <div class="board-score">${row.score.toLocaleString()}</div>
     `;
-    teamsEl.appendChild(col);
+    container.appendChild(div);
   });
+  if (rows.length === 0) {
+    container.innerHTML = '<div class="board-row">No answers yet</div>';
+  }
 }
 
-function renderSummary(s) {
-  showScreen("summary");
+function renderReveal(payload) {
   clearInterval(timerInterval);
-  insightsEl.innerHTML = "";
-  const items = [];
-  if (s.mostAgreed) {
-    items.push({
-      emoji: "🏆",
-      label: "Most agreed on",
-      headline: `${Math.round(s.mostAgreed.share * 100)}% said "${s.mostAgreed.topOption}"`,
-      body: `on "${s.mostAgreed.prompt}"`,
-    });
-  }
-  if (s.mostDivided) {
-    items.push({
-      emoji: "⚖️",
-      label: "Most divided",
-      headline: "Coin flip",
-      body: `"${s.mostDivided.prompt}" split the room`,
-    });
-  }
-  if (s.bestTwins) {
-    items.push({
-      emoji: "👯",
-      label: "Certified twins",
-      headline: `${s.bestTwins.a} & ${s.bestTwins.b}`,
-      body: `matched on every single question`,
-    });
-  }
-  if (s.freeThinker && s.freeThinker.count > 0) {
-    items.push({
-      emoji: "🦄",
-      label: "Free thinker",
-      headline: s.freeThinker.name,
-      body: `went rogue ${s.freeThinker.count} time${s.freeThinker.count > 1 ? "s" : ""}`,
-    });
-  }
-  if (items.length === 0) {
-    items.push({ emoji: "🤷", label: "Result", headline: "Not enough data", body: "play again to find a pattern!" });
-  }
-  items.forEach((it, i) => {
+  showScreen("reveal");
+  const r = payload.reveal;
+  revealNum.textContent = `Question ${payload.index + 1} of ${payload.total} — Answer`;
+  revealEmoji.textContent = r.emoji;
+  revealOptions.innerHTML = "";
+  r.options.forEach((opt, i) => {
     const div = document.createElement("div");
-    div.className = `insight-card ${ACCENTS[i % ACCENTS.length]}`;
-    div.innerHTML = `
-      <div class="insight-emoji">${it.emoji}</div>
-      <div class="insight-label">${it.label}</div>
-      <div class="insight-headline">${it.headline}</div>
-      <div class="insight-body">${it.body}</div>
-    `;
-    insightsEl.appendChild(div);
+    const isCorrect = i === r.correctIndex;
+    div.className = `mc-opt ${ACCENTS[i]} ${isCorrect ? "correct" : "dim"}`;
+    div.innerHTML = `<span class="letter">${LETTERS[i]}</span>${opt}`;
+    revealOptions.appendChild(div);
   });
+  revealExplain.innerHTML = `<b>${r.options[r.correctIndex]}</b> — ${r.explain}`;
+  statCorrect.textContent = `${r.correctCount}/${r.totalAnswered}`;
+  statFastest.textContent = r.fastestName || "—";
+  renderLeaderboard(leaderboardList, payload.leaderboard);
+}
+
+function renderFinal(payload) {
+  showScreen("final");
+  winnerName.textContent = payload.leaderboard[0] ? payload.leaderboard[0].name : "—";
+  finalList.innerHTML = "";
+  payload.leaderboard.forEach((row, i) => {
+    const div = document.createElement("div");
+    div.className = `board-row ${i === 0 ? "top1" : i === 1 ? "top2" : i === 2 ? "top3" : ""}`;
+    div.innerHTML = `
+      <div class="rank">${i + 1}</div>
+      <div class="board-name">${escapeHtml(row.name)}</div>
+      <div class="board-score">${row.score.toLocaleString()}</div>
+    `;
+    finalList.appendChild(div);
+  });
+  if (payload.leaderboard.length === 0) {
+    finalList.innerHTML = '<div class="board-row">No answers yet</div>';
+  }
 }
 
 fetch("/api/qr")
@@ -150,16 +154,19 @@ socket.on("state", (s) => {
     renderPlayers(s.players || []);
   } else if (s.phase === "question") {
     renderQuestion({ question: s.question, total: s.total, index: s.index, deadline: s.deadline });
-  } else if (s.phase === "summary") {
-    renderSummary(s.summary);
+  } else if (s.phase === "reveal") {
+    renderReveal({ reveal: s.reveal, leaderboard: s.leaderboard, total: s.total, index: s.index });
+  } else if (s.phase === "final") {
+    renderFinal({ leaderboard: s.leaderboard });
   }
 });
 
 socket.on("players-update", renderPlayers);
 socket.on("question", renderQuestion);
-socket.on("tally-update", renderTally);
-socket.on("summary", renderSummary);
+socket.on("reveal", renderReveal);
+socket.on("final", renderFinal);
 
 startBtn.addEventListener("click", () => socket.emit("host-start"));
 nextBtn.addEventListener("click", () => socket.emit("host-next"));
+nextBtn2.addEventListener("click", () => socket.emit("host-next"));
 resetBtn.addEventListener("click", () => socket.emit("host-reset"));

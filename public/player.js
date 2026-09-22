@@ -3,28 +3,32 @@ const socket = io();
 const joinScreen = document.getElementById("join-screen");
 const waitingScreen = document.getElementById("waiting-screen");
 const questionScreen = document.getElementById("question-screen");
-const summaryScreen = document.getElementById("summary-screen");
+const waitingRevealScreen = document.getElementById("waiting-reveal-screen");
+const revealScreen = document.getElementById("reveal-screen");
+const finalScreen = document.getElementById("final-screen");
 
 const nameForm = document.getElementById("name-form");
 const nameInput = document.getElementById("name-input");
 const questionNum = document.getElementById("question-num");
-const questionText = document.getElementById("question-text");
+const questionEmoji = document.getElementById("question-emoji");
 const optionsEl = document.getElementById("options");
-const liveResults = document.getElementById("live-results");
 const timerEl = document.getElementById("timer");
+const resultCard = document.getElementById("result-card");
+const finalCard = document.getElementById("final-card");
 
 const ACCENTS = ["accent-0", "accent-1", "accent-2", "accent-3"];
+const LETTERS = ["A", "B", "C", "D"];
 
 let myName = sessionStorage.getItem("warmup-name") || "";
-let currentQuestionIndex = -1;
-let hasAnsweredCurrent = false;
 let timerInterval = null;
 
 function showScreen(name) {
   joinScreen.classList.toggle("hidden", name !== "join");
   waitingScreen.classList.toggle("hidden", name !== "waiting");
   questionScreen.classList.toggle("hidden", name !== "question");
-  summaryScreen.classList.toggle("hidden", name !== "summary");
+  waitingRevealScreen.classList.toggle("hidden", name !== "waiting-reveal");
+  revealScreen.classList.toggle("hidden", name !== "reveal");
+  finalScreen.classList.toggle("hidden", name !== "final");
 }
 
 function startTimer(deadline) {
@@ -44,45 +48,44 @@ function startTimer(deadline) {
 
 function renderQuestion(payload) {
   showScreen("question");
-  currentQuestionIndex = payload.index;
-  hasAnsweredCurrent = false;
-  liveResults.classList.add("hidden");
   questionNum.textContent = `Question ${payload.index + 1} of ${payload.total}`;
-  questionText.textContent = payload.question.prompt;
+  questionEmoji.textContent = payload.question.emoji;
   optionsEl.innerHTML = "";
   payload.question.options.forEach((opt, i) => {
     const btn = document.createElement("button");
-    btn.className = `option-btn ${ACCENTS[i % ACCENTS.length]}`;
-    btn.textContent = opt;
+    btn.className = `option-btn ${ACCENTS[i]}`;
+    btn.innerHTML = `<span class="letter">${LETTERS[i]}</span>${opt}`;
     btn.addEventListener("click", () => {
       socket.emit("answer", i);
-      hasAnsweredCurrent = true;
       [...optionsEl.children].forEach((c, ci) => {
         c.disabled = true;
         c.classList.toggle("picked", ci === i);
       });
-      liveResults.classList.remove("hidden");
+      showScreen("waiting-reveal");
     });
     optionsEl.appendChild(btn);
   });
   if (payload.deadline) startTimer(payload.deadline);
 }
 
-function renderTally(q) {
-  if (q.qi !== currentQuestionIndex || !hasAnsweredCurrent) return;
-  const total = q.groups.reduce((a, g) => a + g.length, 0);
-  liveResults.innerHTML = "";
-  q.options.forEach((opt, i) => {
-    const count = q.groups[i].length;
-    const pct = total ? Math.round((count / total) * 100) : 0;
-    const col = document.createElement("div");
-    col.className = `result-col ${ACCENTS[i % ACCENTS.length]}`;
-    col.innerHTML = `
-      <div class="result-pct">${pct}%</div>
-      <div class="result-count">${count} · ${opt}</div>
-    `;
-    liveResults.appendChild(col);
-  });
+function renderYourResult(r) {
+  showScreen("reveal");
+  resultCard.className = `result-card ${r.correct ? "win" : "lose"}`;
+  resultCard.innerHTML = `
+    <div class="tag">${r.correct ? "Correct" : "Not quite"}</div>
+    <div class="big">+${r.points} pts</div>
+    <div class="sub">Total: ${r.totalScore.toLocaleString()} pts</div>
+    <div class="rank-pill">#${r.rank} of ${r.totalPlayers}</div>
+  `;
+}
+
+function renderYourFinal(r) {
+  showScreen("final");
+  finalCard.innerHTML = `
+    <div class="tag">Final rank</div>
+    <div class="big">#${r.rank} of ${r.totalPlayers}</div>
+    <div class="sub">${r.totalScore.toLocaleString()} pts total</div>
+  `;
 }
 
 socket.on("state", (s) => {
@@ -94,14 +97,16 @@ socket.on("state", (s) => {
     showScreen("waiting");
   } else if (s.phase === "question") {
     renderQuestion({ question: s.question, total: s.total, index: s.index, deadline: s.deadline });
-  } else if (s.phase === "summary") {
-    showScreen("summary");
+  } else if (s.phase === "reveal") {
+    showScreen("waiting-reveal");
+  } else if (s.phase === "final") {
+    showScreen("final");
   }
 });
 
 socket.on("question", renderQuestion);
-socket.on("tally-update", renderTally);
-socket.on("summary", () => showScreen("summary"));
+socket.on("your-result", renderYourResult);
+socket.on("your-final", renderYourFinal);
 
 nameForm.addEventListener("submit", (e) => {
   e.preventDefault();
