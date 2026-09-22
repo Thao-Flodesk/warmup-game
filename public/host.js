@@ -136,9 +136,73 @@ function renderLeaderboardScreen(payload) {
   renderLeaderboardRows(leaderboardList, payload.leaderboard);
 }
 
+const FIREWORK_COLORS = ["#cf4a27", "#6b954c", "#e0ca52", "#aea579"];
+
+function launchFireworks() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText = "position:fixed;inset:0;pointer-events:none;z-index:1000;";
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+
+  let particles = [];
+  let burstsLeft = 5;
+
+  function burst() {
+    const x = canvas.width * (0.2 + Math.random() * 0.6);
+    const y = canvas.height * (0.15 + Math.random() * 0.35);
+    const color = FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)];
+    for (let i = 0; i < 44; i++) {
+      const angle = (Math.PI * 2 * i) / 44 + Math.random() * 0.2;
+      const speed = 2.5 + Math.random() * 3;
+      particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0,
+        maxLife: 50 + Math.random() * 20,
+        color,
+        size: 2.5 + Math.random() * 2,
+      });
+    }
+    burstsLeft--;
+    if (burstsLeft > 0) setTimeout(burst, 450 + Math.random() * 350);
+  }
+  burst();
+
+  function tick() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.045;
+      p.life++;
+      const alpha = Math.max(0, 1 - p.life / p.maxLife);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    particles = particles.filter((p) => p.life < p.maxLife);
+    if (particles.length > 0 || burstsLeft > 0) {
+      requestAnimationFrame(tick);
+    } else {
+      canvas.remove();
+    }
+  }
+  tick();
+}
+
 function renderFinal(payload) {
   showScreen("final");
   winnerName.textContent = payload.leaderboard[0] ? payload.leaderboard[0].name : "—";
+  launchFireworks();
   finalList.innerHTML = "";
   payload.leaderboard.forEach((row, i) => {
     const div = document.createElement("div");

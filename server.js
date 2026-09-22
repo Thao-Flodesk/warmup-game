@@ -42,8 +42,8 @@ const server = app.listen(PORT, () => {
 const io = new Server(server);
 
 const QUESTION_SECONDS = 10;
-const REVEAL_SECONDS = 3;
-const LEADERBOARD_SECONDS = 3;
+const REVEAL_SECONDS = 5;
+const LEADERBOARD_SECONDS = 5;
 
 function shuffleQuestion(q) {
   const order = [0, 1, 2, 3];
