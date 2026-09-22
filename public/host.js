@@ -148,8 +148,13 @@ function launchFireworks() {
   document.body.appendChild(canvas);
   const ctx = canvas.getContext("2d");
 
+  const DURATION_MS = 3000;
+  const BURST_COUNT = 4;
+  const BURST_GAP_MS = DURATION_MS / BURST_COUNT;
+  const PARTICLE_LIFE_MS = 900;
+  const startTime = performance.now();
+
   let particles = [];
-  let burstsLeft = 5;
 
   function burst() {
     const x = canvas.width * (0.2 + Math.random() * 0.6);
@@ -163,25 +168,24 @@ function launchFireworks() {
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
-        life: 0,
-        maxLife: 50 + Math.random() * 20,
+        born: performance.now(),
         color,
         size: 2.5 + Math.random() * 2,
       });
     }
-    burstsLeft--;
-    if (burstsLeft > 0) setTimeout(burst, 450 + Math.random() * 350);
   }
-  burst();
 
-  function tick() {
+  for (let b = 0; b < BURST_COUNT; b++) {
+    setTimeout(burst, b * BURST_GAP_MS);
+  }
+
+  function tick(now) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     particles.forEach((p) => {
       p.x += p.vx;
       p.y += p.vy;
       p.vy += 0.045;
-      p.life++;
-      const alpha = Math.max(0, 1 - p.life / p.maxLife);
+      const alpha = Math.max(0, 1 - (now - p.born) / PARTICLE_LIFE_MS);
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.color;
       ctx.beginPath();
@@ -189,14 +193,14 @@ function launchFireworks() {
       ctx.fill();
     });
     ctx.globalAlpha = 1;
-    particles = particles.filter((p) => p.life < p.maxLife);
-    if (particles.length > 0 || burstsLeft > 0) {
+    particles = particles.filter((p) => now - p.born < PARTICLE_LIFE_MS);
+    if (now - startTime < DURATION_MS + PARTICLE_LIFE_MS) {
       requestAnimationFrame(tick);
     } else {
       canvas.remove();
     }
   }
-  tick();
+  requestAnimationFrame(tick);
 }
 
 function renderFinal(payload) {
